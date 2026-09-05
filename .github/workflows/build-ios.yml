@@ -1,4 +1,4 @@
-name: Build iOS IPA
+name: Build Android APK
 
 on:
   push:
@@ -6,225 +6,43 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
-  build-ios:
-    runs-on: macos-latest
-
+  build:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: npm
+          node-version: '22'
 
-      - name: Install web dependencies
-        shell: bash
+      - name: Install Dependencies and Build
         run: |
-          set -euo pipefail
+          npm install
+          npm run build
 
-          # GitHub runners may briefly lose access to the npm registry.
-          # Increase npm network tolerance and reduce concurrent downloads.
-          npm config set fetch-retries 6
-          npm config set fetch-retry-mintimeout 20000
-          npm config set fetch-retry-maxtimeout 180000
-          npm config set fetch-timeout 900000
-          npm config set maxsockets 4
-          npm cache verify || true
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-          install_command="npm install --include=optional --no-audit --no-fund --prefer-offline"
-          if [ -f package-lock.json ]; then
-            install_command="npm ci --include=optional --no-audit --no-fund --prefer-offline"
-          fi
-
-          installed=0
-          for attempt in 1 2 3; do
-            echo "Installing web dependencies (attempt ${attempt}/3)"
-            if eval "$install_command"; then
-              installed=1
-              break
-            fi
-            if [ "$attempt" -lt 3 ]; then
-              echo "npm install failed; waiting before retry..." >&2
-              sleep 20
-            fi
-          done
-
-          if [ "$installed" -ne 1 ]; then
-            echo "Unable to install web dependencies after 3 attempts." >&2
-            exit 1
-          fi
-
-      - name: Install native optional dependencies
-        shell: bash
+      - name: Setup Capacitor Android
         run: |
-          set -euo pipefail
-          MACHINE="$(uname -m)"
+          npm install @capacitor/android @capacitor/core @capacitor/cli
+          npx cap add android || true
+          npx cap sync android
 
-          LIGHTNINGCSS_VERSION="$(node -p "require('./node_modules/lightningcss/package.json').version")"
-          TAILWIND_OXIDE_VERSION="$(node -p "require('./node_modules/@tailwindcss/oxide/package.json').version")"
-
-          if [ "$MACHINE" = "arm64" ]; then
-            npm install --no-save --include=optional "lightningcss-darwin-arm64@${LIGHTNINGCSS_VERSION}"
-            npm install --no-save --include=optional "@tailwindcss/oxide-darwin-arm64@${TAILWIND_OXIDE_VERSION}"
-          else
-            npm install --no-save --include=optional "lightningcss-darwin-x64@${LIGHTNINGCSS_VERSION}"
-            npm install --no-save --include=optional "@tailwindcss/oxide-darwin-x64@${TAILWIND_OXIDE_VERSION}"
-          fi
-
-          node -e "require('lightningcss'); require('@tailwindcss/oxide'); console.log('Native CSS bindings loaded successfully')"
-
-      - name: Build Web Assets
-        shell: bash
-        run: npm run build
-
-      - name: Install Capacitor packages
-        shell: bash
-        run: npm install @capacitor/cli @capacitor/core @capacitor/ios --no-audit --no-fund
-
-      - name: Regenerate Capacitor iOS platform
-        shell: bash
+      - name: Build Debug APK
         run: |
-          set -euo pipefail
-          # The iOS folder is generated from the web project. Recreating it
-          # prevents stale or malformed Assets.xcassets files from reaching Xcode.
-          rm -rf ios
-          npx cap add ios
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
-      - name: Sync Capacitor iOS
-        shell: bash
-        run: npx cap sync ios
-
-      - name: Install CocoaPods dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -d ios/App
-          cd ios/App
-          command -v pod
-
-          # Some Capacitor generations do not emit a Podfile in CI.
-          # Create a deterministic one so CocoaPods can generate App.xcworkspace.
-          if [ ! -f Podfile ]; then
-            printf '%s\n' \
-              "platform :ios, '15.0'" \
-              'use_frameworks!' \
-              '' \
-              "install! 'cocoapods', :disable_input_output_paths => true" \
-              '' \
-              "target 'App' do" \
-              "  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'" \
-              "  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'" \
-              'end' \
-              '' \
-              'post_install do |installer|' \
-              '  installer.pods_project.targets.each do |target|' \
-              '    target.build_configurations.each do |config|' \
-              "      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'" \
-              '    end' \
-              '  end' \
-              'end' > Podfile
-          fi
-
-          test -s Podfile
-          pod install --repo-update
-          test -f App.xcworkspace/contents.xcworkspacedata
-          echo "Capacitor CocoaPods installation completed: $PWD/App.xcworkspace"
-
-      - name: Validate iOS asset catalog
-        shell: bash
-        run: |
-          set -euo pipefail
-          ASSETS="ios/App/App/Assets.xcassets"
-          test -d "$ASSETS"
-          test -f "$ASSETS/AppIcon.appiconset/Contents.json"
-          test -f "$ASSETS/AppIcon.appiconset/AppIcon-512@2x.png"
-          test -f "$ASSETS/Splash.imageset/Contents.json"
-          test -f "$ASSETS/Splash.imageset/splash-2732x2732.png"
-          sips -g format -g pixelWidth -g pixelHeight \
-            "$ASSETS/AppIcon.appiconset/AppIcon-512@2x.png" \
-            "$ASSETS/Splash.imageset/splash-2732x2732.png"
-          ICON_WIDTH="$(sips -g pixelWidth "$ASSETS/AppIcon.appiconset/AppIcon-512@2x.png" | awk '/pixelWidth/ {print $2}')"
-          ICON_HEIGHT="$(sips -g pixelHeight "$ASSETS/AppIcon.appiconset/AppIcon-512@2x.png" | awk '/pixelHeight/ {print $2}')"
-          if [ "$ICON_WIDTH" != "1024" ] || [ "$ICON_HEIGHT" != "1024" ]; then
-            echo "App icon must be 1024x1024; got ${ICON_WIDTH}x${ICON_HEIGHT}" >&2
-            exit 1
-          fi
-
-      - name: Print Xcode diagnostics
-        shell: bash
-        run: |
-          xcodebuild -version
-          echo "Working directory: $(pwd)"
-          find ios -maxdepth 3 \( -name '*.xcworkspace' -o -name '*.xcodeproj' \) -print
-
-      - name: Build Xcode Archive
-        shell: bash
-        run: |
-          set -o pipefail
-          cd ios
-          if [ -d "App" ]; then
-            cd App
-          fi
-
-          WORKSPACE="App.xcworkspace"
-          ARCHIVE_PATH="$PWD/build/App.xcarchive"
-          mkdir -p "$PWD/build"
-
-          if [ ! -d "$WORKSPACE" ] || [ ! -f "$WORKSPACE/contents.xcworkspacedata" ]; then
-            echo "Expected $PWD/$WORKSPACE after pod install, but it was not found." >&2
-            find . -maxdepth 1 -type d -print >&2
-            exit 1
-          fi
-
-          xcodebuild archive \
-            -workspace "$WORKSPACE" \
-            -scheme App \
-            -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -archivePath "$ARCHIVE_PATH" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            COMPILER_INDEX_STORE_ENABLE=NO 2>&1 | tee "$PWD/xcodebuild.log"
-
-          test -d "$ARCHIVE_PATH/Products/Applications/App.app"
-
-      - name: Upload Xcode diagnostic log
-        if: always()
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: xcodebuild-log
-          path: ios/**/xcodebuild.log
-          if-no-files-found: ignore
-
-      - name: Package unsigned IPA artifact
-        if: success()
-        shell: bash
-        run: |
-          set -euo pipefail
-          APP_PATH="$(find ios -path '*/build/App.xcarchive/Products/Applications/App.app' -type d -print -quit)"
-          test -n "$APP_PATH"
-          rm -rf Payload App.ipa
-          mkdir -p Payload
-          cp -R "$APP_PATH" Payload/App.app
-          /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload App.ipa
-
-      - name: Upload unsigned IPA artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-ipa-unsigned
-          path: App.ipa
-
-      - name: Upload iOS archive artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-archive
-          path: ios/**/build/App.xcarchive
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
