@@ -1,0 +1,386 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Alexandria:wght@300;400;500;600;700;800&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Cairo", "Plus Jakarta Sans", "Alexandria", system-ui, -apple-system, sans-serif;
+  --font-cairo: "Cairo", sans-serif;
+  --font-alexandria: "Alexandria", sans-serif;
+  --font-kufi: "Cairo", "Alexandria", sans-serif;
+  --font-amiri: "Amiri", serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-text-size-adjust: 100%;
+  background-color: #fcfaf6;
+}
+
+body {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: pan-y;
+  overscroll-behavior-y: auto;
+  background-color: #fcfaf6;
+}
+
+#root {
+  width: 100%;
+  min-width: 0;
+  min-height: 100svh;
+  min-height: 100dvh;
+}
+
+html.dark,
+html.dark body {
+  background-color: #070d0e;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "Cairo", "Plus Jakarta Sans", "Alexandria", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[dir="ltr"] body,
+[dir="ltr"] button,
+[dir="ltr"] input,
+[dir="ltr"] select,
+[dir="ltr"] textarea {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+@layer utilities {
+  .animate-spin-slow {
+    animation: spin 12s linear infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+/* Elegant scrollbar for components and content panels */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(16, 185, 129, 0.2);
+  border-radius: 9999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(16, 185, 129, 0.4);
+}
+
+/* Horizontal category and reciter strips remain independently swipeable. */
+.overflow-x-auto,
+.no-scrollbar {
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Islamic Geometric Background pattern */
+.islamic-pattern {
+  background-image: radial-gradient(rgba(212, 175, 55, 0.15) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+.dark .islamic-pattern {
+  background-image: radial-gradient(rgba(212, 175, 55, 0.08) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+.glow-gold {
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.35);
+}
+
+.glow-emerald {
+  text-shadow: 0 0 10px rgba(52, 211, 153, 0.35);
+}
+
+/* Safe Area: CSS is the only inset owner. */
+:root {
+  --app-safe-top: max(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)), 0px);
+  --app-safe-left: max(var(--safe-area-inset-left, env(safe-area-inset-left, 0px)), 0px);
+  --app-safe-right: max(var(--safe-area-inset-right, env(safe-area-inset-right, 0px)), 0px);
+}
+
+.top-bar {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: auto !important;
+  left: 0 !important;
+  z-index: 1000 !important;
+  width: 100% !important;
+  max-width: 100vw;
+  min-height: calc(52px + var(--app-safe-top)) !important;
+  padding-top: calc(6px + var(--app-safe-top)) !important;
+  padding-bottom: 6px !important;
+  padding-left: max(calc(12px + var(--app-safe-left)), 12px) !important;
+  padding-right: max(calc(12px + var(--app-safe-right)), 12px) !important;
+  box-sizing: border-box !important;
+  background-color: #fcfaf6 !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  direction: ltr !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  isolation: isolate;
+  transform: none !important;
+  contain: layout paint;
+}
+
+.top-bar > div {
+  min-width: 0;
+}
+
+.top-bar h1,
+.top-bar span {
+  max-width: 100%;
+}
+
+/* Keep page content below the fixed app bar on every phone size. */
+.app-main {
+  width: 100%;
+  max-width: 80rem;
+  min-width: 0;
+  margin-inline: auto;
+  --app-main-top: calc(64px + var(--app-safe-top));
+  padding-top: var(--app-main-top) !important;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+  min-height: 0;
+}
+
+.app-main > *,
+.app-main .grid,
+.app-main .flex,
+.app-main section,
+.app-main article {
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .app-main {
+    --app-main-top: calc(70px + var(--app-safe-top));
+    padding-top: var(--app-main-top) !important;
+  }
+}
+
+.dark .top-bar {
+  background-color: #070d0e !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Android WebView: the document remains the only vertical scroll owner. */
+#app-root-container {
+  width: 100%;
+  max-width: 100vw;
+  min-width: 0;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow: visible;
+}
+
+/* Compact phones: reduce only the root scale and horizontal chrome, not touch targets. */
+@media (max-width: 479px) {
+  html {
+    font-size: 16px;
+  }
+
+  .app-main {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .top-bar {
+    gap: 6px;
+    padding-left: max(calc(8px + var(--app-safe-left)), 8px) !important;
+    padding-right: max(calc(8px + var(--app-safe-right)), 8px) !important;
+  }
+
+  .top-bar > div:first-child {
+    gap: 4px;
+    flex-shrink: 1;
+  }
+
+  .top-bar > div:last-child {
+    gap: 7px;
+    flex-shrink: 1;
+  }
+
+  .top-bar > div:last-child > div:first-child {
+    width: 44px;
+    height: 44px;
+  }
+
+  .top-bar h1 {
+    max-width: 35vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.95rem !important;
+  }
+
+  .top-bar .app-top-bar {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  html {
+    font-size: 15px;
+  }
+
+  .app-main {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .top-bar {
+    gap: 3px;
+    padding-left: max(calc(6px + var(--app-safe-left)), 6px) !important;
+    padding-right: max(calc(6px + var(--app-safe-right)), 6px) !important;
+  }
+
+  .top-bar > div:first-child {
+    gap: 2px;
+  }
+
+  .top-bar > div:last-child {
+    gap: 5px;
+  }
+
+  .top-bar > div:last-child > div:first-child {
+    width: 40px;
+    height: 40px;
+  }
+
+  .top-bar h1 {
+    max-width: 31vw;
+    font-size: 0.88rem !important;
+  }
+}
+
+/* Card stabilization and container alignment */
+.hero-card,
+.welcome-section {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 600px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  overflow: hidden !important;
+  border-radius: 16px !important;
+}
+
+/* Welcome screen and compact Android viewport safeguards. */
+.welcome-splash-overlay {
+  min-height: 100dvh;
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+}
+
+.welcome-splash-card {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.welcome-splash-card::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-height: 680px) {
+  .welcome-splash-card {
+    border-radius: 24px !important;
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+    gap: 12px !important;
+  }
+
+  .welcome-splash-logo {
+    width: 72px !important;
+    height: 72px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .welcome-splash-card {
+    border-width: 1px !important;
+    border-radius: 20px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .welcome-splash-card button {
+    min-height: 44px;
+  }
+}
+
+/* Avoid accidental horizontal overflow from long Arabic labels or media. */
+#app-root-container,
+#app-root-container main,
+#app-root-container section,
+#app-root-container article {
+  overflow-x: clip;
+}
+
+@supports not (overflow: clip) {
+  #app-root-container,
+  #app-root-container main,
+  #app-root-container section,
+  #app-root-container article {
+    overflow-x: hidden;
+  }
+}
