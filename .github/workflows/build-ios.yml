@@ -30,12 +30,10 @@ jobs:
         run: npm install @capacitor/ios @capacitor/core @capacitor/cli
 
       - name: Add Capacitor iOS Platform
-        run: |
-          if [ ! -d "ios" ]; then
-            npx cap add ios
-          else
-            npx cap sync ios
-          fi
+        run: npx cap add ios || true
+
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
 
       - name: Install CocoaPods dependencies
         run: |
