@@ -1,0 +1,10 @@
+{
+  "name": "Remix: Noor Al-Islam",
+  "description": "تطبيق نور الإسلام: رفيقك الروحي الشامل للقرآن الكريم، الأذكار، مواقيت الصلاة الدقيقة، والتسبيح كصدقة جارية.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

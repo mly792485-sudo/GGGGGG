@@ -1,0 +1,37 @@
+{
+	"appId": "com.noor.alislam",
+	"appName": "نور الإسلام",
+	"webDir": "dist",
+	"bundledWebRuntime": false,
+	"ios": {
+		"minDeploymentTarget": "15.0",
+		"contentInset": "always",
+		"scrollEnabled": true,
+		"preferredContentMode": "mobile",
+		"handleApplicationURL": true
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 0,
+			"launchAutoHide": true,
+			"launchFadeOutDuration": 0,
+			"backgroundColor": "#070D0E",
+			"showSpinner": false
+		},
+		"LocalNotifications": {
+			"sound": "adhan.wav"
+		},
+		"StatusBar": {
+			"overlaysWebView": true,
+			"style": "DARK"
+		},
+		"Keyboard": {
+			"resize": "body",
+			"style": "DARK"
+		}
+	},
+	"packageClassList": [
+		"LocalNotificationsPlugin",
+		"SplashScreenPlugin"
+	]
+}
