@@ -29,27 +29,15 @@ jobs:
       - name: Install Capacitor packages
         run: npm install @capacitor/ios @capacitor/core @capacitor/cli
 
-      - name: Add or Sync Capacitor iOS
-        run: |
-          npx cap add ios || true
-          npx cap sync ios
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
 
       - name: Install CocoaPods dependencies
         run: |
-          if [ -d "ios/App" ]; then
-            cd ios/App
-            pod install
-          elif [ -d "ios" ]; then
-            cd ios
-            pod install
-          fi
+          cd ios/App
+          pod install
 
       - name: Build Xcode Archive
         run: |
-          if [ -d "ios/App" ]; then
-            cd ios/App
-            xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -archivePath App.xcarchive archive -allowProvisioningUpdates
-          elif [ -d "ios" ]; then
-            cd ios
-            xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -archivePath App.xcarchive archive -allowProvisioningUpdates
-          fi
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -archivePath App.xcarchive archive -allowProvisioningUpdates
