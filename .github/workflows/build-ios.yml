@@ -1,46 +1,203 @@
-name: Build iOS IPA
+name: Build iOS Unsigned Diagnostic
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  build-ios:
-    name: Build iOS IPA
+  build-ios-unsigned:
+    name: Build iOS unsigned diagnostic IPA
     runs-on: macos-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
+          cache: npm
 
-      - name: Install web dependencies
-        run: npm install
+      - name: Install dependencies
+        run: npm install --include=optional --no-audit --no-fund
 
-      - name: Build Web Assets
+      - name: Build web application
         run: npm run build
 
+      - name: Check web build output
+        run: |
+          test -f dist/index.html
+          test -d dist
+          echo "dist/index.html exists"
+          find dist -maxdepth 2 -type f | sort | head -100
+
       - name: Install Capacitor packages
-        run: npm install @capacitor/ios @capacitor/core @capacitor/cli
+        run: |
+          npm install @capacitor/cli@8.5.0 @capacitor/core@8.5.0 @capacitor/ios@8.5.0 --no-audit --no-fund
 
-      - name: Add Capacitor iOS Platform
-        run: npx cap add ios || true
-
-      - name: Sync Capacitor iOS
-        run: npx cap sync ios
+      - name: Create a fresh iOS platform
+        run: |
+          rm -rf ios
+          npx cap add ios
+          npx cap sync ios
 
       - name: Install CocoaPods dependencies
         run: |
+          set -euo pipefail
           cd ios/App
-          pod install
+          if [ ! -f Podfile ]; then
+            cat > Podfile <<'RUBY'
+          require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
+          platform :ios, '15.0'
+          use_frameworks!
+          install! 'cocoapods', :disable_input_output_paths => true
+          def capacitor_pods
+            pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+            pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+          end
+          target 'App' do
+            capacitor_pods
+          end
+          post_install do |installer|
+            assertDeploymentTarget(installer)
+          end
+          RUBY
+          fi
+          pod install --repo-update
+          test -d App.xcworkspace
+          test -f App.xcworkspace/contents.xcworkspacedata
+          echo "Created ios/App/App.xcworkspace"
 
-      - name: Build Xcode Archive
+      - name: Replace default white iOS launch screen
         run: |
+          cat > ios/App/App/Base.lproj/LaunchScreen.storyboard <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="17132" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
+              <device id="retina4_7" orientation="portrait" appearance="dark"/>
+              <dependencies>
+                  <deployment identifier="iOS"/>
+                  <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="17105"/>
+                  <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+              </dependencies>
+              <scenes>
+                  <scene sceneID="EHf-IW-A2E">
+                      <objects>
+                          <viewController id="01J-lp-oVM" sceneMemberID="viewController">
+                              <view key="view" contentMode="scaleToFill" id="vVY-5F-2qA">
+                                  <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+                                  <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                  <color key="backgroundColor" red="0.015686" green="0.035294" blue="0.039216" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                              </view>
+                          </viewController>
+                          <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
+                      </objects>
+                      <point key="canvasLocation" x="53" y="375"/>
+                  </scene>
+              </scenes>
+          </document>
+          EOF
+          test -s ios/App/App/Base.lproj/LaunchScreen.storyboard
+          grep -q 'backgroundColor.*red="0.015686"' ios/App/App/Base.lproj/LaunchScreen.storyboard
+          ! grep -q 'image="Splash"' ios/App/App/Base.lproj/LaunchScreen.storyboard
+
+      - name: Add iOS privacy descriptions
+        run: |
+          /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string نحتاج للوصول إلى موقعك لتحديد مواقيت الصلاة واتجاه القبلة بدقة." ios/App/App/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string نحتاج للوصول إلى موقعك لتحديد مواقيت الصلاة بدقة وتنبيهات الأذان." ios/App/App/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/App/App/Info.plist || true
+
+      - name: Validate iOS assets
+        run: |
+          test -f ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json
+          test -d ios/App/App/Assets.xcassets/Splash.imageset
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('ios/App/App/Assets.xcassets')
+          for contents in root.rglob('Contents.json'):
+              data = json.loads(contents.read_text())
+              for image in data.get('images', []):
+                  filename = image.get('filename')
+                  if filename and not (contents.parent / filename).is_file():
+                      raise SystemExit(f'Missing asset referenced by {contents}: {filename}')
+          print('All referenced iOS assets exist and Contents.json files are valid JSON.')
+          PY
+          sips -g pixelWidth -g pixelHeight ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+
+      - name: Verify iOS workspace before archive
+        run: |
+          set -euo pipefail
+          test -f ios/App/App.xcworkspace/contents.xcworkspacedata
+          test -f ios/App/Podfile.lock
+          echo "iOS workspace and Podfile.lock are ready"
+
+      - name: Archive unsigned diagnostic build
+        run: |
+          set -o pipefail
           cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -archivePath App.xcarchive archive -allowProvisioningUpdates
+          xcodebuild archive \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$PWD/build/App.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            SKIP_INSTALL=NO \
+            2>&1 | tee "$GITHUB_WORKSPACE/xcodebuild.log"
+
+      - name: Locate archived app bundle
+        id: locate_app
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find ios/App/build/App.xcarchive -type d -name '*.app' -print -quit)"
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: No .app bundle was produced inside the Xcode archive."
+            echo "Archive contents:"
+            find ios/App/build/App.xcarchive -maxdepth 5 -print | sort | head -200
+            exit 1
+          fi
+          echo "Found app bundle: $APP_PATH"
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Package unsigned IPA for diagnostics
+        env:
+          APP_PATH: ${{ steps.locate_app.outputs.app_path }}
+        run: |
+          set -euo pipefail
+          test -d "$APP_PATH"
+          rm -rf Payload App.ipa
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/App.app
+          zip -qry App.ipa Payload
+          test -s App.ipa
+          echo "Created unsigned IPA: $(du -h App.ipa | cut -f1)"
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-unsigned
+          path: App.ipa
+          if-no-files-found: error
+
+      - name: Upload Xcode archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-archive-unsigned
+          path: ios/App/build/App.xcarchive
+          if-no-files-found: error
+
+      - name: Upload build log
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: xcodebuild.log
+          if-no-files-found: error
